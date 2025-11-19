@@ -4,15 +4,42 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
-    branches: [ main, master ]
+    # Run when PR base is `dev` (opened / updated / reopened)
+    branches: [ dev ]
+    types: [opened, synchronize, reopened]
 
 jobs:
-  test:
+  lint:
+    name: Lint (ruff)
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [3.11]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Run ruff
+        run: |
+          ruff check .
+
+  test:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        python-version: [3.11]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,13 +52,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt || true; fi
-          pip install ruff pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest
 
-      - name: Lint (ruff)
-        run: |
-          ruff check .
+      - name: Lint with Ruff
+        run:  ruff check app
 
       - name: Run tests
-        run: |
-          pytest -q
+        run:  pytest -q
